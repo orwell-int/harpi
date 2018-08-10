@@ -441,11 +441,11 @@ void loop()
     printHex(RFID.uid.uidByte, RFID.uid.size);
     Serial.println();
 
-    if (strncmp(RFID.uid.uidByte, KEY1, RFID.uid.size) == 1) 
+    if (strncmp(RFID.uid.uidByte, KEY1, RFID.uid.size) == 0) 
     {
       Serial.println("KEY1 detected!");
     }
-    else if (strncmp(RFID.uid.uidByte, KEY2, RFID.uid.size) == 1) 
+    else if (strncmp(RFID.uid.uidByte, KEY2, RFID.uid.size) == 0) 
     {
       Serial.println("KEY2 detected!");
     }
