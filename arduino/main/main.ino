@@ -7,7 +7,7 @@ uint8_t const RFID_RST_PIN = 10;
 uint8_t const RFID_SDA_PIN = 9;
 
 // US needs 5V
-uint8_t const US_TRIG_PIN = 0;
+uint8_t const US_TRIG_PIN = A0;
 uint8_t const US_ECHO_PIN = 8;
 
 uint8_t const MOTOR1_PWM_PIN = 3;
