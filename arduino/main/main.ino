@@ -444,10 +444,12 @@ void loop()
     if (strncmp(RFID.uid.uidByte, KEY1, RFID.uid.size) == 0) 
     {
       Serial.println("KEY1 detected!");
+      MOTOR1.toggle();
     }
     else if (strncmp(RFID.uid.uidByte, KEY2, RFID.uid.size) == 0) 
     {
       Serial.println("KEY2 detected!");
+      MOTOR2.toggle();
     }
   }
   
