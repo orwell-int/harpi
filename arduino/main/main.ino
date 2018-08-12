@@ -1,4 +1,4 @@
-
+#include <Adafruit_NeoPixel.h>
 #include <SPI.h>
 #include <MFRC522.h>
 
@@ -17,6 +17,11 @@ uint8_t const MOTOR1_IN2_PIN = 4;
 uint8_t const MOTOR2_PWM_PIN = 6;
 uint8_t const MOTOR2_IN1_PIN = 5;
 uint8_t const MOTOR2_IN2_PIN = 7;
+
+// LED need 5V
+uint8_t const LED_PIN = A1;
+uint8_t const LED_COUNT = 2;
+uint8_t const MAX_LIGHT = 64;
 
 uint8_t const MIN_PWM = 50;
 uint8_t const MAX_PWM = 255;
@@ -373,6 +378,7 @@ Motor MOTOR2(MOTOR2_PWM_PIN, MOTOR2_IN1_PIN, MOTOR2_IN2_PIN);
 //Switch SWITCH(8);
 UltraSound US(US_TRIG_PIN, US_ECHO_PIN);
 MFRC522 RFID(RFID_SDA_PIN, RFID_RST_PIN);  // Create MFRC522 instance
+Adafruit_NeoPixel LEDS = Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 
 void setup()
 {
@@ -386,7 +392,8 @@ void setup()
   //MOTOR2.increaseSpeed(step * 4);
   Serial.begin(9600);
   SPI.begin(); // Init SPI bus
-  RFID.PCD_Init(); // Init MFRC522 
+  RFID.PCD_Init(); // Init MFRC522
+  LEDS.begin();
 }
 
 long LAST_TOGGLE = 0;
@@ -415,6 +422,15 @@ void loop()
 
   MOTOR1.update();
   MOTOR2.update();
+
+  
+  uint8_t green = map(distance, 0, 2000, 0, MAX_LIGHT);
+  uint8_t blue  = map(distance, 0, 2000, 0, MAX_LIGHT);
+  uint8_t red   = map(distance, 0, 2000, MAX_LIGHT, 0);
+
+  LEDS.setPixelColor(0, red, green, 0);
+  LEDS.setPixelColor(1, red, 0, blue);
+  LEDS.show();
 
   delay(20);
 
