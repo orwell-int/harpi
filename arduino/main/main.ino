@@ -8,7 +8,7 @@ uint8_t const RFID_SDA_PIN = 9;
 
 // US needs 5V
 uint8_t const US_TRIG_PIN = A0;
-uint8_t const US_ECHO_PIN = 8;
+uint8_t const US_ECHO_PIN = A1;
 
 uint8_t const MOTOR1_PWM_PIN = 3;
 uint8_t const MOTOR1_IN1_PIN = 2;
@@ -18,8 +18,8 @@ uint8_t const MOTOR2_PWM_PIN = 6;
 uint8_t const MOTOR2_IN1_PIN = 5;
 uint8_t const MOTOR2_IN2_PIN = 7;
 
-// LED need 5V
-uint8_t const LED_PIN = A1;
+// RGB LEDs need 5V
+uint8_t const LED_PIN = A2;
 uint8_t const LED_COUNT = 2;
 uint8_t const MAX_LIGHT = 64;
 
