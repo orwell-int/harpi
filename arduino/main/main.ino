@@ -1,10 +1,14 @@
 #include <Adafruit_NeoPixel.h>
 #include <SPI.h>
 #include <MFRC522.h>
+#include <Wire.h>
 
 // RFID needs 3.3V
 uint8_t const RFID_RST_PIN = 10;
 uint8_t const RFID_SDA_PIN = 9;
+
+byte const KEY1[4] = {0xB7,0x84,0x20,0xD9};
+byte const KEY2[4] = {0x60,0x79,0xFA,0xA3};
 
 // US needs 5V
 uint8_t const US_TRIG_PIN = A0;
@@ -23,17 +27,18 @@ uint8_t const LED_PIN = A2;
 uint8_t const LED_COUNT = 2;
 uint8_t const MAX_LIGHT = 64;
 
+// VOLTMETER
 uint8_t const VOLTAGE_PIN = A3;
 uint8_t const VOLTAGE_RATIO = 11;
 
+// MOTORS
 uint8_t const MIN_PWM = 50;
 uint8_t const MAX_PWM = 255;
 bool isClockwise = false;
 bool IncreaseSpeed = true;
-uint8_t step = 5;
 
-byte const KEY1[4] = {0xB7,0x84,0x20,0xD9};
-byte const KEY2[4] = {0x60,0x79,0xFA,0xA3};
+// I2C
+uint8_t const I2C_ADDRESS = 1;
 
 enum class Direction
 {
@@ -397,6 +402,10 @@ void setup()
   SPI.begin(); // Init SPI bus
   RFID.PCD_Init(); // Init MFRC522
   LEDS.begin();
+
+  Wire.begin(I2C_ADDRESS);
+  Wire.onRequest(onI2cRequest);
+  Wire.onReceive(onI2cReceive);
 }
 
 long LAST_TOGGLE = 0;
@@ -505,4 +514,17 @@ void printHex(byte *buffer, byte bufferSize) {
     Serial.print(buffer[i] < 0x10 ? " 0" : " ");
     Serial.print(buffer[i], HEX);
   }
+}
+
+void onI2cReceive(int numBytes) {
+  while (1 < Wire.available()) {
+    char c = Wire.read();
+    Serial.print(c);
+  }
+  int x = Wire.read();
+  Serial.println(x);
+}
+
+void onI2cRequest() {
+  Wire.write("hello");
 }
