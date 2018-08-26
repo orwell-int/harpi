@@ -23,6 +23,9 @@ uint8_t const LED_PIN = A2;
 uint8_t const LED_COUNT = 2;
 uint8_t const MAX_LIGHT = 64;
 
+uint8_t const VOLTAGE_PIN = A3;
+uint8_t const VOLTAGE_RATIO = 11;
+
 uint8_t const MIN_PWM = 50;
 uint8_t const MAX_PWM = 255;
 bool isClockwise = false;
@@ -410,12 +413,16 @@ void loop()
 
   uint8_t newSpeed1 = map(distance, 0, 2000, MAX_PWM, MIN_PWM);
   uint8_t newSpeed2 = map(distance, 0, 2000, MIN_PWM, MAX_PWM);
+  float voltage = analogRead(VOLTAGE_PIN) * VOLTAGE_RATIO * 5 / 1024.0;
   Serial.print("Distance: ");
   Serial.print(distance);
   Serial.print(" mm ; speed1: ");
   Serial.print(newSpeed1);
   Serial.print(" ; speed2: ");
   Serial.print(newSpeed2);
+  Serial.print(" ; voltage: ");
+  Serial.print(voltage);
+  Serial.print(" V");
   Serial.print("\n");
   MOTOR1.setSpeed(newSpeed1);
   MOTOR2.setSpeed(newSpeed2);
