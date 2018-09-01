@@ -381,12 +381,81 @@ double UltraSound::read() const
   return (pulseWidth / 5.8);
 }
 
+class Led
+{
+public:
+  Led(
+    uint8_t const index,
+    Adafruit_NeoPixel & leds);
+
+  void set(
+    uint8_t const red,
+    uint8_t const green,
+    uint8_t const blue);
+
+  bool write();
+
+private:
+  uint8_t const index;
+  Adafruit_NeoPixel & leds;
+  uint8_t red;
+  uint8_t green;
+  uint8_t blue;
+  uint8_t newRed;
+  uint8_t newGreen;
+  uint8_t newBlue;
+  bool hasNew;       
+};
+
+Led::Led(
+  uint8_t const index,
+  Adafruit_NeoPixel & leds)
+: index(index)
+, leds(leds)
+, red(0)
+, green(0)
+, blue(0)
+, newRed(0)
+, newGreen(0)
+, newBlue(0)
+, hasNew(true)
+{
+}
+
+void Led::set(
+  uint8_t const redValue,
+  uint8_t const greenValue,
+  uint8_t const blueValue) {
+  if (red != redValue || green != greenValue || blue != blueValue) {
+    hasNew = true;
+    newRed = redValue;
+    newGreen = greenValue;
+    newBlue = blueValue;
+  }
+}
+
+bool Led::write()
+{
+  if (hasNew) {
+    leds.setPixelColor(index, newRed, newGreen, newBlue);
+    red = newRed;
+    green = newGreen;
+    blue = newBlue;
+    hasNew = false;
+    
+    return true;
+  }
+  return false;
+}
+
 Motor MOTOR1(MOTOR1_PWM_PIN, MOTOR1_IN1_PIN, MOTOR1_IN2_PIN);
 Motor MOTOR2(MOTOR2_PWM_PIN, MOTOR2_IN1_PIN, MOTOR2_IN2_PIN);
 //Switch SWITCH(8);
 UltraSound US(US_TRIG_PIN, US_ECHO_PIN);
 MFRC522 RFID(RFID_SDA_PIN, RFID_RST_PIN);  // Create MFRC522 instance
 Adafruit_NeoPixel LEDS = Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
+Led LED1(0, LEDS);
+Led LED2(1, LEDS);
 
 void setup()
 {
@@ -444,28 +513,11 @@ void loop()
   uint8_t blue  = map(distance, 0, 2000, 0, MAX_LIGHT);
   uint8_t red   = map(distance, 0, 2000, MAX_LIGHT, 0);
 
-  LEDS.setPixelColor(0, red, green, 0);
-  LEDS.setPixelColor(1, red, 0, blue);
-  LEDS.show();
+  if (LED1.write() or LED2.write()) {
+    LEDS.show();  
+  }
 
   delay(20);
-
-//  if (IncreaseSpeed)
-//  {
-//    if (Update::Partial == MOTOR1.increaseSpeed(step))
-//    {
-////      delay(4000);
-//      IncreaseSpeed = false;
-//    }
-//  }
-//  else
-//  {
-//    if (Update::Partial == MOTOR1.decreaseSpeed(step))
-//    {
-//      IncreaseSpeed = true;
-//      MOTOR1.switchDirection();
-//    }
-//  }
 
   if (RFID.PICC_IsNewCardPresent() and RFID.PICC_ReadCardSerial())
   {
@@ -485,24 +537,6 @@ void loop()
     }
   }
   
-//  if (SWITCH.read() == Control::Enabled)
-//  {
-//    if (not TOGGLE)
-//    {
-//      if (NOW - LAST_TOGGLE > 1000)
-//      {
-//        Serial.print("Toggle\n");
-//        MOTOR1.toggle();
-//        MOTOR2.toggle();
-//        TOGGLE = true;
-//        LAST_TOGGLE = NOW;
-//      }
-//    }
-//  }
-//  else
-//  {
-//    TOGGLE = false;
-//  }
   delay(400);
 }
 
@@ -516,11 +550,48 @@ void printHex(byte *buffer, byte bufferSize) {
   }
 }
 
+enum class i2cCommand {
+  VALUE,
+  LED1,
+  LED2,
+  MOTORS
+};
+
+enum class i2cValue {
+  US,
+  RFID,
+  VOLTAGE,
+};
+
 void onI2cReceive(int numBytes) {
-  while (1 < Wire.available()) {
-    char c = Wire.read();
-    Serial.print(c);
+  uint8_t const c = Wire.read();
+  Serial.print(c);
+
+  switch(static_cast<i2cCommand>(c)) {
+    case i2cCommand::VALUE:
+      // nothing to do
+    break;
+    case i2cCommand::LED1:
+    {
+      uint8_t const r = Wire.read();
+      uint8_t const g = Wire.read();
+      uint8_t const b = Wire.read();
+      LED1.set(r, g, b);
+      break;
+    }
+    case i2cCommand::LED2:
+    {
+      uint8_t const r = Wire.read();
+      uint8_t const g = Wire.read();
+      uint8_t const b = Wire.read();
+      LED2.set(r, g, b);
+      break;
+    }
+    case i2cCommand::MOTORS:
+    
+    break;
   }
+  
   int x = Wire.read();
   Serial.println(x);
 }
