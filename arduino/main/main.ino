@@ -2,6 +2,7 @@
 #include <SPI.h>
 #include <MFRC522.h>
 #include <Wire.h>
+#include "Motor.hpp"
 
 // RFID needs 3.3V
 uint8_t const RFID_RST_PIN = 10;
@@ -40,117 +41,12 @@ bool IncreaseSpeed = true;
 // I2C
 uint8_t const I2C_ADDRESS = 1;
 
-enum class Direction
-{
-  Forward,
-  Reverse
-};
 
 enum class Control
 {
   Disabled,
   Enabled  
 };
-
-class Motor
-{
-public:
-  Motor(
-    uint8_t const pinPWM,
-    uint8_t const pinIN1,
-    uint8_t const pinIN2);
-
-  void set(
-    int8_t const direction,
-    uint8_t const valuePWM);
-
-  bool write();
-  
-private:
-  void updateDirection();
-  void updateSpeed();
-  uint8_t const m_pinPWM;
-  uint8_t const m_pinIN1;
-  uint8_t const m_pinIN2;
-  Direction m_direction;
-  Direction m_newDirection;
-  uint8_t m_valuePWM;
-  uint8_t m_newValuePWM;
-  bool m_hasNewDirection;
-  bool m_hasNewValuePWM;
-};
-
-Motor::Motor(
-  uint8_t const pinPWM,
-  uint8_t const pinIN1,
-  uint8_t const pinIN2)
-  : m_pinPWM(pinPWM)
-  , m_pinIN1(pinIN1)
-  , m_pinIN2(pinIN2)
-  , m_direction(Direction::Forward)
-  , m_newDirection(Direction::Forward)
-  , m_valuePWM(0)
-  , m_newValuePWM(0)
-  , m_hasNewDirection(true)
-  , m_hasNewValuePWM(true)
-{
-  pinMode(m_pinPWM, OUTPUT);
-  pinMode(m_pinIN1, OUTPUT);
-  pinMode(m_pinIN2, OUTPUT);
-}
-
-void Motor::set(
-  int8_t const directionRaw,
-  uint8_t const valuePWM)
-{
-  Direction const direction =
-    (directionRaw >= 0)
-    ? Direction::Forward
-    : Direction::Reverse;
-  if (direction != m_direction)
-  {
-    m_newDirection = direction;
-    m_hasNewDirection = true;
-  }
-  if (valuePWM != m_valuePWM)
-  {
-    m_newValuePWM = valuePWM;
-    m_hasNewValuePWM = true;
-  }
-}
-
-bool Motor::write()
-{
-  bool hasChanged(false);
-  if (m_hasNewDirection)
-  {
-    switch (m_newDirection)
-    {
-      case Direction::Forward:
-      {
-        digitalWrite(m_pinIN1, HIGH);
-        digitalWrite(m_pinIN2, LOW);
-        break;
-      }
-      case Direction::Reverse:
-      {
-        digitalWrite(m_pinIN1, LOW);
-        digitalWrite(m_pinIN2, HIGH);
-        break;
-      }
-    }
-    m_direction = m_newDirection;
-    m_hasNewDirection = false;
-    hasChanged = true;
-  }
-  if (m_hasNewValuePWM)
-  {
-    analogWrite(m_pinPWM, m_newValuePWM);
-    m_valuePWM = m_newValuePWM;
-    m_hasNewValuePWM = false;
-    hasChanged = true;
-  }
-}
 
 class Switch
 {
@@ -287,8 +183,8 @@ bool Led::write()
   return false;
 }
 
-Motor MOTOR1(MOTOR1_PWM_PIN, MOTOR1_IN1_PIN, MOTOR1_IN2_PIN);
-Motor MOTOR2(MOTOR2_PWM_PIN, MOTOR2_IN1_PIN, MOTOR2_IN2_PIN);
+harpi::Motor MOTOR1(MOTOR1_PWM_PIN, MOTOR1_IN1_PIN, MOTOR1_IN2_PIN);
+harpi::Motor MOTOR2(MOTOR2_PWM_PIN, MOTOR2_IN1_PIN, MOTOR2_IN2_PIN);
 //Switch SWITCH(8);
 UltraSound US(US_TRIG_PIN, US_ECHO_PIN);
 MFRC522 RFID(RFID_SDA_PIN, RFID_RST_PIN);  // Create MFRC522 instance
