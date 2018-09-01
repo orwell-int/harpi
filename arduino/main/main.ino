@@ -46,23 +46,10 @@ enum class Direction
   Reverse
 };
 
-enum class Status
-{
-  Stopped,
-  Running
-};
-
 enum class Control
 {
   Disabled,
   Enabled  
-};
-
-enum class Update
-{
-  Full,
-  Partial,
-  None
 };
 
 class Motor
@@ -73,21 +60,11 @@ public:
     uint8_t const pinIN1,
     uint8_t const pinIN2);
 
-  void disable();
-  void enable();
-  void toggle();
+  void set(
+    int8_t const direction,
+    uint8_t const valuePWM);
 
-  void update();
-  void setSpeedRange(
-    uint8_t const min,
-    uint8_t const max);
-  void setSpeed(uint8_t const valuePWM);
-  Update increaseSpeed(uint8_t const delta);
-  Update decreaseSpeed(uint8_t const delta);
-
-  void setDirection(Direction const direction);
-
-  void switchDirection();
+  bool write();
   
 private:
   void updateDirection();
@@ -95,12 +72,12 @@ private:
   uint8_t const m_pinPWM;
   uint8_t const m_pinIN1;
   uint8_t const m_pinIN2;
-  uint8_t m_valuePWM;
-  uint8_t m_minPWM;
-  uint8_t m_maxPWM;
   Direction m_direction;
-  Status m_status;
-  Control m_control;
+  Direction m_newDirection;
+  uint8_t m_valuePWM;
+  uint8_t m_newValuePWM;
+  bool m_hasNewDirection;
+  bool m_hasNewValuePWM;
 };
 
 Motor::Motor(
@@ -110,206 +87,68 @@ Motor::Motor(
   : m_pinPWM(pinPWM)
   , m_pinIN1(pinIN1)
   , m_pinIN2(pinIN2)
-  , m_valuePWM(0)
-  , m_minPWM(0)
-  , m_maxPWM(MAX_PWM)
   , m_direction(Direction::Forward)
-  , m_status(Status::Stopped)
-  , m_control(Control::Disabled)
+  , m_newDirection(Direction::Forward)
+  , m_valuePWM(0)
+  , m_newValuePWM(0)
+  , m_hasNewDirection(true)
+  , m_hasNewValuePWM(true)
 {
   pinMode(m_pinPWM, OUTPUT);
   pinMode(m_pinIN1, OUTPUT);
   pinMode(m_pinIN2, OUTPUT);
 }
 
-void Motor::enable()
+void Motor::set(
+  int8_t const directionRaw,
+  uint8_t const valuePWM)
 {
-  if (Control::Disabled == m_control)
+  Direction const direction =
+    (directionRaw >= 0)
+    ? Direction::Forward
+    : Direction::Reverse;
+  if (direction != m_direction)
   {
-    m_control = Control::Enabled;
-    updateDirection();
-    updateSpeed();
+    m_newDirection = direction;
+    m_hasNewDirection = true;
+  }
+  if (valuePWM != m_valuePWM)
+  {
+    m_newValuePWM = valuePWM;
+    m_hasNewValuePWM = true;
   }
 }
 
-void Motor::disable()
+bool Motor::write()
 {
-  if (Control::Enabled == m_control)
+  bool hasChanged(false);
+  if (m_hasNewDirection)
   {
-    analogWrite(m_pinPWM, 0);
-    m_control = Control::Disabled;
-  }
-}
-
-void Motor::toggle()
-{
-  if (Control::Enabled == m_control)
-  {
-    disable();
-  }
-  else
-  {
-    enable();
-  }
-}
-
-void Motor::update()
-{
-  updateDirection();
-  updateSpeed();
-}
-
-void Motor::setSpeedRange(
-  uint8_t const min,
-  uint8_t const max)
-{
-  if (min <= max)
-  {
-    m_minPWM = min;
-    m_maxPWM = max;
-  }
-  else
-  {
-    // we are not allowed exceptions so make things work
-    m_minPWM = max;
-    m_maxPWM = min;
-  }
-  if (Status::Running == m_status)
-  {
-    if (m_valuePWM < m_minPWM)
-    {
-      m_valuePWM = m_minPWM;
-    }
-    else if (m_valuePWM > m_maxPWM)
-    {
-      m_valuePWM = m_maxPWM;
-    }
-  }
-}
-
-void Motor::setSpeed(uint8_t const valuePWM)
-{
-  if (valuePWM > m_maxPWM)
-  {
-    m_valuePWM = m_maxPWM;
-  }
-  else if (valuePWM < m_minPWM)
-  {
-    m_valuePWM = m_minPWM;
-  }
-  else
-  {
-    m_valuePWM = valuePWM;
-  }
-  if (m_valuePWM != 0)
-  {
-    m_status = Status::Running;
-  }
-}
-
-Update Motor::increaseSpeed(uint8_t const delta)
-{
-//  Serial.print("increaseSpeed(");
-//  Serial.print(delta);
-//  Serial.print(")\n");
-  Update update = Update::None;
-  if (0 != delta)
-  {
-    if ((m_valuePWM + delta)  > m_maxPWM)
-    {
-      m_valuePWM = m_maxPWM;
-      update = Update::Partial;
-    }
-    else
-    {
-      m_valuePWM += delta;
-      update = Update::Full;
-    }
-    m_status = Status::Running;
-  }
-  return update;
-}
-
-Update Motor::decreaseSpeed(uint8_t const delta)
-{
-//  Serial.print("deccreaseSpeed(");
-//  Serial.print(delta);
-//  Serial.print(")\n");
-  Update update = Update::None;
-  if (0 != delta)
-  {
-    if ((m_valuePWM - delta) < m_minPWM)
-    {
-      m_valuePWM = m_minPWM;
-      update = Update::Partial;
-    }
-    else
-    {
-      m_valuePWM -= delta;
-      update = Update::Full;
-    }
-    if (0 == m_valuePWM)
-    {
-      m_status = Status::Stopped;
-    }
-  }
-  return update;
-}
-
-void Motor::setDirection(Direction const direction)
-{
-  m_direction = direction;
-}
-
-void Motor::switchDirection()
-{
-  switch (m_direction)
-  {
-    case Direction::Forward:
-    {
-      m_direction = Direction::Reverse;
-      break;
-    }
-    case Direction::Reverse:
-    {
-      m_direction = Direction::Forward;
-      break;
-    }
-  }
-}
-
-void Motor::updateDirection()
-{
-  if (Control::Enabled == m_control)
-  {
-    switch (m_direction)
+    switch (m_newDirection)
     {
       case Direction::Forward:
       {
-//        Serial.print("Forward\n");
         digitalWrite(m_pinIN1, HIGH);
         digitalWrite(m_pinIN2, LOW);
         break;
       }
       case Direction::Reverse:
       {
-//        Serial.print("Reverse\n");
         digitalWrite(m_pinIN1, LOW);
         digitalWrite(m_pinIN2, HIGH);
         break;
       }
     }
+    m_direction = m_newDirection;
+    m_hasNewDirection = false;
+    hasChanged = true;
   }
-}
-
-void Motor::updateSpeed()
-{
-  if (Control::Enabled == m_control)
+  if (m_hasNewValuePWM)
   {
-//    Serial.print("Speed:");
-//    Serial.print(m_valuePWM);
-//    Serial.print("\n");
-    analogWrite(m_pinPWM, m_valuePWM);
+    analogWrite(m_pinPWM, m_newValuePWM);
+    m_valuePWM = m_newValuePWM;
+    m_hasNewValuePWM = false;
+    hasChanged = true;
   }
 }
 
@@ -460,14 +299,6 @@ Led LED2(1, LEDS);
 void setup()
 {
   Serial.begin(9600);
-  MOTOR1.setSpeedRange(MIN_PWM, MAX_PWM);
-  MOTOR2.setSpeedRange(MIN_PWM, MAX_PWM);
-//  MOTOR1.enable();
-  MOTOR1.setSpeed(MIN_PWM);
-  MOTOR2.setSpeed(MIN_PWM);
-  //MOTOR2.enable();
-  //MOTOR2.increaseSpeed(step * 4);
-  Serial.begin(9600);
   SPI.begin(); // Init SPI bus
   RFID.PCD_Init(); // Init MFRC522
   LEDS.begin();
@@ -477,10 +308,6 @@ void setup()
   Wire.onReceive(onI2cReceive);
 }
 
-long LAST_TOGGLE = 0;
-bool TOGGLE = false;
-long NOW = 0;
-
 void loop()
 {
   double distance = US.read();
@@ -489,26 +316,17 @@ void loop()
     distance = 2000;
   }
 
-  uint8_t newSpeed1 = map(distance, 0, 2000, MAX_PWM, MIN_PWM);
-  uint8_t newSpeed2 = map(distance, 0, 2000, MIN_PWM, MAX_PWM);
   float voltage = analogRead(VOLTAGE_PIN) * VOLTAGE_RATIO * 5 / 1024.0;
   Serial.print("Distance: ");
   Serial.print(distance);
-  Serial.print(" mm ; speed1: ");
-  Serial.print(newSpeed1);
-  Serial.print(" ; speed2: ");
-  Serial.print(newSpeed2);
-  Serial.print(" ; voltage: ");
+  Serial.print(" mm ; voltage: ");
   Serial.print(voltage);
   Serial.print(" V");
   Serial.print("\n");
-  MOTOR1.setSpeed(newSpeed1);
-  MOTOR2.setSpeed(newSpeed2);
 
-  MOTOR1.update();
-  MOTOR2.update();
+  MOTOR1.write();
+  MOTOR2.write();
 
-  
   uint8_t green = map(distance, 0, 2000, 0, MAX_LIGHT);
   uint8_t blue  = map(distance, 0, 2000, 0, MAX_LIGHT);
   uint8_t red   = map(distance, 0, 2000, MAX_LIGHT, 0);
@@ -528,12 +346,10 @@ void loop()
     if (strncmp(RFID.uid.uidByte, KEY1, RFID.uid.size) == 0) 
     {
       Serial.println("KEY1 detected!");
-      MOTOR1.toggle();
     }
     else if (strncmp(RFID.uid.uidByte, KEY2, RFID.uid.size) == 0) 
     {
       Serial.println("KEY2 detected!");
-      MOTOR2.toggle();
     }
   }
   
@@ -588,8 +404,15 @@ void onI2cReceive(int numBytes) {
       break;
     }
     case i2cCommand::MOTORS:
-    
-    break;
+    {
+      int8_t const dir1 = Wire.read();
+      uint8_t const speed1 = Wire.read();
+      MOTOR1.set(dir1, speed1);
+      int8_t const dir2 = Wire.read();
+      uint8_t const speed2 = Wire.read();
+      MOTOR2.set(dir2, speed2);
+      break;
+    }
   }
   
   int x = Wire.read();
