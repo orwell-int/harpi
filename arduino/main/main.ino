@@ -3,13 +3,16 @@
 #include <MFRC522.h>
 #include <Wire.h>
 #include "Motor.hpp"
+#include "Led.hpp"
+#include "Switch.hpp"
+#include "UltraSound.hpp"
 
 // RFID needs 3.3V
 uint8_t const RFID_RST_PIN = 10;
 uint8_t const RFID_SDA_PIN = 9;
 
-byte const KEY1[4] = {0xB7,0x84,0x20,0xD9};
-byte const KEY2[4] = {0x60,0x79,0xFA,0xA3};
+byte const KEY1[4] = {0xB7, 0x84 ,0x20, 0xD9};
+byte const KEY2[4] = {0x60, 0x79, 0xFA, 0xA3};
 
 // US needs 5V
 uint8_t const US_TRIG_PIN = A0;
@@ -26,171 +29,21 @@ uint8_t const MOTOR2_IN2_PIN = 7;
 // RGB LEDs need 5V
 uint8_t const LED_PIN = A2;
 uint8_t const LED_COUNT = 2;
-uint8_t const MAX_LIGHT = 64;
 
 // VOLTMETER
 uint8_t const VOLTAGE_PIN = A3;
 uint8_t const VOLTAGE_RATIO = 11;
 
-// MOTORS
-uint8_t const MIN_PWM = 50;
-uint8_t const MAX_PWM = 255;
-bool isClockwise = false;
-bool IncreaseSpeed = true;
-
 // I2C
 uint8_t const I2C_ADDRESS = 1;
 
-
-enum class Control
-{
-  Disabled,
-  Enabled  
-};
-
-class Switch
-{
-public:
-  Switch(uint8_t const pin);
-
-  Control read() const;
-
-private:
-  uint8_t const m_pin;
-};
-
-Switch::Switch(uint8_t const pin)
-  : m_pin(pin)
-{
-  pinMode(m_pin, INPUT);
-}
-
-Control Switch::read() const
-{
-  int const value = digitalRead(m_pin);
-//  Serial.print("Switch read: ");
-//  Serial.print(value);
-//  Serial.print("\n");
-  if (LOW == value)
-  {
-//    Serial.print("Switch -> LOW\n");
-    return Control::Disabled;
-  }
-  else
-  {
-//    Serial.print("Switch -> HIGH\n");
-    return Control::Enabled;
-  }
-}
-
-class UltraSound
-{
-public:
-  UltraSound(
-    uint8_t const pinTrig,
-    uint8_t const pinEcho);
-
-  double read() const;
-
-private:
-  uint8_t const m_pinTrig;
-  uint8_t const m_pinEcho;
-};
-
-UltraSound::UltraSound(
-  uint8_t const pinTrig,
-  uint8_t const pinEcho)
-  : m_pinTrig(pinTrig)
-  , m_pinEcho(pinEcho)
-{
-  pinMode(m_pinTrig, OUTPUT);
-  pinMode(m_pinEcho, INPUT);
-}
-
-double UltraSound::read() const
-{
-  digitalWrite(m_pinTrig, HIGH);
-  delayMicroseconds(10);
-  digitalWrite(m_pinTrig, LOW);
-  long pulseWidth = pulseIn(m_pinEcho, HIGH); 
-  return (pulseWidth / 5.8);
-}
-
-class Led
-{
-public:
-  Led(
-    uint8_t const index,
-    Adafruit_NeoPixel & leds);
-
-  void set(
-    uint8_t const red,
-    uint8_t const green,
-    uint8_t const blue);
-
-  bool write();
-
-private:
-  uint8_t const index;
-  Adafruit_NeoPixel & leds;
-  uint8_t red;
-  uint8_t green;
-  uint8_t blue;
-  uint8_t newRed;
-  uint8_t newGreen;
-  uint8_t newBlue;
-  bool hasNew;       
-};
-
-Led::Led(
-  uint8_t const index,
-  Adafruit_NeoPixel & leds)
-: index(index)
-, leds(leds)
-, red(0)
-, green(0)
-, blue(0)
-, newRed(0)
-, newGreen(0)
-, newBlue(0)
-, hasNew(true)
-{
-}
-
-void Led::set(
-  uint8_t const redValue,
-  uint8_t const greenValue,
-  uint8_t const blueValue) {
-  if (red != redValue || green != greenValue || blue != blueValue) {
-    hasNew = true;
-    newRed = redValue;
-    newGreen = greenValue;
-    newBlue = blueValue;
-  }
-}
-
-bool Led::write()
-{
-  if (hasNew) {
-    leds.setPixelColor(index, newRed, newGreen, newBlue);
-    red = newRed;
-    green = newGreen;
-    blue = newBlue;
-    hasNew = false;
-    
-    return true;
-  }
-  return false;
-}
-
 harpi::Motor MOTOR1(MOTOR1_PWM_PIN, MOTOR1_IN1_PIN, MOTOR1_IN2_PIN);
 harpi::Motor MOTOR2(MOTOR2_PWM_PIN, MOTOR2_IN1_PIN, MOTOR2_IN2_PIN);
-//Switch SWITCH(8);
-UltraSound US(US_TRIG_PIN, US_ECHO_PIN);
+harpi::UltraSound US(US_TRIG_PIN, US_ECHO_PIN);
 MFRC522 RFID(RFID_SDA_PIN, RFID_RST_PIN);  // Create MFRC522 instance
 Adafruit_NeoPixel LEDS = Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
-Led LED1(0, LEDS);
-Led LED2(1, LEDS);
+harpi::Led LED1(0, LEDS);
+harpi::Led LED2(1, LEDS);
 
 void setup()
 {
@@ -223,10 +76,6 @@ void loop()
   MOTOR1.write();
   MOTOR2.write();
 
-  uint8_t green = map(distance, 0, 2000, 0, MAX_LIGHT);
-  uint8_t blue  = map(distance, 0, 2000, 0, MAX_LIGHT);
-  uint8_t red   = map(distance, 0, 2000, MAX_LIGHT, 0);
-
   if (LED1.write() or LED2.write()) {
     LEDS.show();  
   }
@@ -239,21 +88,20 @@ void loop()
     printHex(RFID.uid.uidByte, RFID.uid.size);
     Serial.println();
 
-    if (strncmp(RFID.uid.uidByte, KEY1, RFID.uid.size) == 0) 
+    if (strncmp(RFID.uid.uidByte, KEY1, RFID.uid.size) == 0)
     {
       Serial.println("KEY1 detected!");
     }
-    else if (strncmp(RFID.uid.uidByte, KEY2, RFID.uid.size) == 0) 
+    else if (strncmp(RFID.uid.uidByte, KEY2, RFID.uid.size) == 0)
     {
       Serial.println("KEY2 detected!");
     }
   }
-  
   delay(400);
 }
 
 /**
- * Helper routine to dump a byte array as hex values to Serial. 
+ * Helper routine to dump a byte array as hex values to Serial.
  */
 void printHex(byte *buffer, byte bufferSize) {
   for (byte i = 0; i < bufferSize; i++) {
