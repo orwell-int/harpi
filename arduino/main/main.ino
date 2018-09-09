@@ -11,8 +11,11 @@
 uint8_t const RFID_RST_PIN = 10;
 uint8_t const RFID_SDA_PIN = 9;
 
-byte const KEY1[4] = {0xB7, 0x84 ,0x20, 0xD9};
-byte const KEY2[4] = {0x60, 0x79, 0xFA, 0xA3};
+uint8_t const KEY_LENGTH = 4;
+byte const KEY1[KEY_LENGTH] = {0xB7, 0x84 ,0x20, 0xD9};
+byte const KEY2[KEY_LENGTH] = {0x60, 0x79, 0xFA, 0xA3};
+
+byte KEY[KEY_LENGTH];
 
 // US needs 5V
 uint8_t const US_TRIG_PIN = A0;
@@ -57,19 +60,22 @@ void setup()
   Wire.onReceive(onI2cReceive);
 }
 
+double DISTANCE = 0;
+double VOLTAGE = 0;
+uint8_t RFID_CARDS_NUMBERS = 0;
+
+size_t const length = 16;
+char buffer [length];
+
 void loop()
 {
-  double distance = US.read();
-  if (distance > 2000)
-  {
-    distance = 2000;
-  }
+  DISTANCE = US.read();
 
-  float voltage = analogRead(VOLTAGE_PIN) * VOLTAGE_RATIO * 5 / 1024.0;
+  VOLTAGE = analogRead(VOLTAGE_PIN) * VOLTAGE_RATIO * 5 / 1024.0;
   Serial.print("Distance: ");
-  Serial.print(distance);
+  Serial.print(DISTANCE);
   Serial.print(" mm ; voltage: ");
-  Serial.print(voltage);
+  Serial.print(VOLTAGE);
   Serial.print(" V");
   Serial.print("\n");
 
@@ -87,6 +93,7 @@ void loop()
     Serial.print(F("The NUID tag is: "));
     printHex(RFID.uid.uidByte, RFID.uid.size);
     Serial.println();
+    memcpy(KEY, RFID.uid.uidByte, KEY_LENGTH);
 
     if (strncmp(RFID.uid.uidByte, KEY1, RFID.uid.size) == 0)
     {
@@ -97,6 +104,14 @@ void loop()
       Serial.println("KEY2 detected!");
     }
   }
+
+  memset(buffer, 0, length);
+  sprintf(buffer + 4, "%i%f%f", length, DISTANCE, VOLTAGE);
+  size_t const index = 12;
+  memcpy(buffer + index, KEY, KEY_LENGTH);
+  Serial.print("\n");
+  printHex(buffer, length);
+  Serial.print("\n");
   delay(400);
 }
 
@@ -164,5 +179,5 @@ void onI2cReceive(int numBytes) {
 }
 
 void onI2cRequest() {
-  Wire.write("hello");
+  Wire.write(buffer);
 }
