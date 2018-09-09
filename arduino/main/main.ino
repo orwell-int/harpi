@@ -64,8 +64,9 @@ double DISTANCE = 0;
 double VOLTAGE = 0;
 uint8_t RFID_CARDS_NUMBERS = 0;
 
-size_t const length = 16;
-char buffer [length];
+size_t const I2C_MAX_BUFFER_SIZE = 32;
+char I2C_BUFFER [I2C_MAX_BUFFER_SIZE];
+size_t I2C_BUFFER_LENGTH = 0;
 
 void loop()
 {
@@ -105,12 +106,20 @@ void loop()
     }
   }
 
-  memset(buffer, 0, length);
-  sprintf(buffer + 4, "%i%f%f", length, DISTANCE, VOLTAGE);
-  size_t const index = 12;
-  memcpy(buffer + index, KEY, KEY_LENGTH);
-  Serial.print("\n");
-  printHex(buffer, length);
+  size_t index = 4;
+  memset(I2C_BUFFER, 0, I2C_MAX_BUFFER_SIZE);
+  String str_distance(DISTANCE);
+  String str_voltage(VOLTAGE);
+  char * char_distance = str_distance.c_str();
+  size_t length = 8;
+  str_distance.toCharArray(I2C_BUFFER + index, length);
+  index += length;
+  str_voltage.toCharArray(I2C_BUFFER + index, length);
+  index += length;
+  memcpy(I2C_BUFFER + index, KEY, KEY_LENGTH);
+  I2C_BUFFER_LENGTH = index + 4;
+  sprintf(I2C_BUFFER, "%i", I2C_BUFFER_LENGTH);
+  printHex(I2C_BUFFER, I2C_BUFFER_LENGTH);
   Serial.print("\n");
   delay(400);
 }
@@ -120,7 +129,7 @@ void loop()
  */
 void printHex(byte *buffer, byte bufferSize) {
   for (byte i = 0; i < bufferSize; i++) {
-    Serial.print(buffer[i] < 0x10 ? " 0" : " ");
+    Serial.print(buffer[i] < 0x10 ? " 0x0" : " 0x");
     Serial.print(buffer[i], HEX);
   }
 }
@@ -140,14 +149,15 @@ enum class i2cValue {
 
 void onI2cReceive(int numBytes) {
   uint8_t const c = Wire.read();
-  Serial.print(c);
 
   switch(static_cast<i2cCommand>(c)) {
     case i2cCommand::VALUE:
+      Serial.println("VALUE");
       // nothing to do
     break;
     case i2cCommand::LED1:
     {
+      Serial.println("LED1");
       uint8_t const r = Wire.read();
       uint8_t const g = Wire.read();
       uint8_t const b = Wire.read();
@@ -156,6 +166,7 @@ void onI2cReceive(int numBytes) {
     }
     case i2cCommand::LED2:
     {
+      Serial.println("LED2");
       uint8_t const r = Wire.read();
       uint8_t const g = Wire.read();
       uint8_t const b = Wire.read();
@@ -164,6 +175,7 @@ void onI2cReceive(int numBytes) {
     }
     case i2cCommand::MOTORS:
     {
+      Serial.println("MOTORS");
       int8_t const dir1 = Wire.read();
       uint8_t const speed1 = Wire.read();
       MOTOR1.set(dir1, speed1);
@@ -173,11 +185,8 @@ void onI2cReceive(int numBytes) {
       break;
     }
   }
-  
-  int x = Wire.read();
-  Serial.println(x);
 }
 
 void onI2cRequest() {
-  Wire.write(buffer);
+  Wire.write(I2C_BUFFER, I2C_BUFFER_LENGTH);
 }
