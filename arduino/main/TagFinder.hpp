@@ -21,10 +21,10 @@ public:
   bool hasDetected(MFRC522::Uid const & iTag);
 private:
   MFRC522 m_reader;
-  bool rfid_tag_present_prev;
-  bool rfid_tag_present;
-  int _rfid_error_counter;
-  bool _tag_found;
+  bool m_rfid_tag_present_prev;
+  bool m_rfid_tag_present;
+  int m_rfid_error_counter;
+  bool m_tag_found;
 };
 
 } // namespace harpi

@@ -144,7 +144,7 @@ void loop()
   memcpy(I2C_BUFFER + index, keyMask, 1);
   I2C_BUFFER_LENGTH = index + 1;
   sprintf(I2C_BUFFER, "%i", I2C_BUFFER_LENGTH);
-  harpi::PrintHex(I2C_BUFFER, I2C_BUFFER_LENGTH);
+  //harpi::PrintHex(I2C_BUFFER, I2C_BUFFER_LENGTH);
   Serial.print("\n");
   delay(400);
 }
