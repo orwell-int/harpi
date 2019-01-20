@@ -6,16 +6,21 @@
 #include "Led.hpp"
 #include "Switch.hpp"
 #include "UltraSound.hpp"
+#include "TagFinder.hpp"
+#include "Utils.hpp"
 
 // RFID needs 3.3V
 uint8_t const RFID_RST_PIN = 10;
 uint8_t const RFID_SDA_PIN = 9;
 
-uint8_t const KEY_LENGTH = 4;
-byte const KEY1[KEY_LENGTH] = {0xB7, 0x84 ,0x20, 0xD9};
-byte const KEY2[KEY_LENGTH] = {0x60, 0x79, 0xFA, 0xA3};
+MFRC522::Uid KEY1 = {4, {0xB7, 0x84 ,0x20, 0xD9}, 0};
+MFRC522::Uid KEY2 = {4, {0x60, 0x79, 0xFA, 0xA3}, 0};
 
-byte KEY[KEY_LENGTH];
+bool KEY1_PRESENT = false;
+bool KEY2_PRESENT = false;
+
+bool OLD_KEY1_PRESENT = false;
+bool OLD_KEY2_PRESENT = false;
 
 // US needs 5V
 uint8_t const US_TRIG_PIN = A0;
@@ -43,7 +48,7 @@ uint8_t const I2C_ADDRESS = 1;
 harpi::Motor MOTOR1(MOTOR1_PWM_PIN, MOTOR1_IN1_PIN, MOTOR1_IN2_PIN);
 harpi::Motor MOTOR2(MOTOR2_PWM_PIN, MOTOR2_IN1_PIN, MOTOR2_IN2_PIN);
 harpi::UltraSound US(US_TRIG_PIN, US_ECHO_PIN);
-MFRC522 RFID(RFID_SDA_PIN, RFID_RST_PIN);  // Create MFRC522 instance
+harpi::TagFinder TAG_FINDER(RFID_SDA_PIN, RFID_RST_PIN);
 Adafruit_NeoPixel LEDS = Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 harpi::Led LED1(0, LEDS);
 harpi::Led LED2(1, LEDS);
@@ -52,7 +57,7 @@ void setup()
 {
   Serial.begin(9600);
   SPI.begin(); // Init SPI bus
-  RFID.PCD_Init(); // Init MFRC522
+  TAG_FINDER.init(); // Init MFRC522
   LEDS.begin();
 
   Wire.begin(I2C_ADDRESS);
@@ -70,6 +75,42 @@ size_t I2C_BUFFER_LENGTH = 0;
 
 void loop()
 {
+  TAG_FINDER.read();
+  if (TAG_FINDER.hasDetected(KEY1))
+  {
+    KEY1_PRESENT = true;
+    if (not OLD_KEY1_PRESENT)
+    {
+      Serial.println("Key1 appeared");
+    }
+  }
+  else
+  {
+    KEY1_PRESENT = false;
+    if (OLD_KEY1_PRESENT)
+    {
+      Serial.println("Key1 disappeared");
+    }
+  }
+  if (TAG_FINDER.hasDetected(KEY2))
+  {
+    KEY2_PRESENT = true;
+    if (not OLD_KEY2_PRESENT)
+    {
+      Serial.println("Key2 appeared");
+    }
+  }
+  else
+  {
+    KEY2_PRESENT = false;
+    if (OLD_KEY2_PRESENT)
+    {
+      Serial.println("Key2 disappeared");
+    }
+  }
+  OLD_KEY1_PRESENT = KEY1_PRESENT;
+  OLD_KEY2_PRESENT = KEY2_PRESENT;
+
   DISTANCE = US.read();
 
   VOLTAGE = analogRead(VOLTAGE_PIN) * VOLTAGE_RATIO * 5 / 1024.0;
@@ -89,23 +130,6 @@ void loop()
 
   delay(20);
 
-  if (RFID.PICC_IsNewCardPresent() and RFID.PICC_ReadCardSerial())
-  {
-    Serial.print(F("The NUID tag is: "));
-    printHex(RFID.uid.uidByte, RFID.uid.size);
-    Serial.println();
-    memcpy(KEY, RFID.uid.uidByte, KEY_LENGTH);
-
-    if (strncmp(RFID.uid.uidByte, KEY1, RFID.uid.size) == 0)
-    {
-      Serial.println("KEY1 detected!");
-    }
-    else if (strncmp(RFID.uid.uidByte, KEY2, RFID.uid.size) == 0)
-    {
-      Serial.println("KEY2 detected!");
-    }
-  }
-
   size_t index = 4;
   memset(I2C_BUFFER, 0, I2C_MAX_BUFFER_SIZE);
   String str_distance(DISTANCE);
@@ -116,22 +140,13 @@ void loop()
   index += length;
   str_voltage.toCharArray(I2C_BUFFER + index, length);
   index += length;
-  memcpy(I2C_BUFFER + index, KEY, KEY_LENGTH);
-  I2C_BUFFER_LENGTH = index + 4;
+  uint8_t const keyMask = KEY1_PRESENT ? 1 : 0 + KEY2_PRESENT ? 2 : 0;
+  memcpy(I2C_BUFFER + index, keyMask, 1);
+  I2C_BUFFER_LENGTH = index + 1;
   sprintf(I2C_BUFFER, "%i", I2C_BUFFER_LENGTH);
-  printHex(I2C_BUFFER, I2C_BUFFER_LENGTH);
+  //harpi::PrintHex(I2C_BUFFER, I2C_BUFFER_LENGTH);
   Serial.print("\n");
   delay(400);
-}
-
-/**
- * Helper routine to dump a byte array as hex values to Serial.
- */
-void printHex(byte *buffer, byte bufferSize) {
-  for (byte i = 0; i < bufferSize; i++) {
-    Serial.print(buffer[i] < 0x10 ? " 0x0" : " 0x");
-    Serial.print(buffer[i], HEX);
-  }
 }
 
 enum class i2cCommand {
