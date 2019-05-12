@@ -17,7 +17,7 @@ bool are_tags_equal(
   MFRC522::Uid const & iTag2)
 {
   return (iTag1.size == iTag2.size)
-    and (strncmp(iTag1.uidByte, iTag2.uidByte, iTag1.size) == 0);
+    and (strncmp(reinterpret_cast< char const * >(iTag1.uidByte), reinterpret_cast< char const * >(iTag2.uidByte), iTag1.size) == 0);
 }
 
 bool is_tag_known(
@@ -140,6 +140,10 @@ void TagFinder::read()
     meta_add_tag(m_reader.uid);
     m_rfid_error_counter = 0;
     m_tag_found = true;
+  } else {
+    Serial.print("\nStatus not OK: ");
+    Serial.print(result);
+    Serial.print("\n");
   }
 
   m_rfid_tag_present = m_tag_found;

@@ -2,6 +2,8 @@
 
 #include <Arduino.h>
 
+#include <analogWrite.h>
+
 namespace harpi
 {
 
