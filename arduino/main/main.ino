@@ -18,6 +18,7 @@ uint8_t const RFID_SDA_PIN = 21;
 
 MFRC522::Uid KEY1 = {4, {0xB7, 0x84 ,0x20, 0xD9}, 0};
 MFRC522::Uid KEY2 = {4, {0x60, 0x79, 0xFA, 0xA3}, 0};
+// other key with ring: B6 35 EA F7
 
 bool KEY1_PRESENT = false;
 bool KEY2_PRESENT = false;
@@ -26,8 +27,8 @@ bool OLD_KEY1_PRESENT = false;
 bool OLD_KEY2_PRESENT = false;
 
 // US needs 5V
-uint8_t const US_TRIG_PIN = 34;
-uint8_t const US_ECHO_PIN = 35;
+uint8_t const US_TRIG_PIN = 4;  // 34 not working
+uint8_t const US_ECHO_PIN = 5;  // 35 not working
 
 uint8_t const MOTOR1_PWM_PIN = 14; // EN
 uint8_t const MOTOR1_IN1_PIN = 26;
@@ -74,7 +75,7 @@ public:
 };
 
 harpi::Motor MOTOR1(MOTOR1_PWM_PIN, MOTOR1_IN1_PIN, MOTOR1_IN2_PIN);
-harpi::Motor MOTOR2(MOTOR2_PWM_PIN, MOTOR2_IN1_PIN, MOTOR2_IN2_PIN);
+harpi::Motor MOTOR2(MOTOR2_PWM_PIN, MOTOR2_IN1_PIN, MOTOR2_IN2_PIN, harpi::LogicToMotion::Pin1LowIsForward);
 harpi::UltraSound US(US_TRIG_PIN, US_ECHO_PIN);
 harpi::TagFinder TAG_FINDER(RFID_SDA_PIN, RFID_RST_PIN);
 Adafruit_NeoPixel LEDS = Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
@@ -82,7 +83,21 @@ harpi::Led LED1(0, LEDS);
 harpi::Led LED2(1, LEDS);
 
 int channel = 0;
-  
+
+
+void bip(int freq=200, int volume=128, int duration=120)
+{
+  ledcWriteTone(channel, freq);
+  ledcWrite(channel, volume);
+  delay(duration);
+  ledcWriteTone(channel, 0);
+}
+
+void silence()
+{
+  ledcWriteTone(channel, 0);
+}
+
 void setup()
 {
   Serial.begin(9600);
@@ -90,23 +105,26 @@ void setup()
   TAG_FINDER.init(); // Init MFRC522
   LEDS.begin();
 
-  int freq = 2000;
+  int freq = 100;
   int resolution = 8;
   ledcSetup(channel, freq, resolution);
   ledcAttachPin(BUZZ_PIN, channel);
-  ledcWriteTone(channel, 2000);
+  bip(1000, 64, 120);
+  note_t const notes[] = { NOTE_C, NOTE_D, NOTE_E, NOTE_F, NOTE_G, NOTE_A, NOTE_B };
+  for (auto const note: notes)
+  {
+    ledcWriteNote(channel, note, 4);
+    delay(400);
+  }
+  ledcWriteNote(channel, NOTE_C, 5);
+  delay(400);
+  silence();
 }
 
 double DISTANCE = 0;
 double VOLTAGE = 0;
 uint8_t RFID_CARDS_NUMBERS = 0;
 
-void bip()
-{
-  ledcWrite(channel, 20);
-  delay(70);
-  ledcWrite(channel, 0);
-}
 
 void loop()
 {
@@ -154,21 +172,23 @@ void loop()
   OLD_KEY1_PRESENT = KEY1_PRESENT;
   OLD_KEY2_PRESENT = KEY2_PRESENT;
 
-  DISTANCE = US.read();
+  uint32_t distance = US.read();
 
   VOLTAGE = analogRead(VOLTAGE_PIN) * VOLTAGE_RATIO * 5 / ADC_MAX_VALUE;
   Serial.print("Distance: ");
-  Serial.print(DISTANCE);
+  Serial.print(distance);
   Serial.print(" mm ; voltage: ");
   Serial.print(VOLTAGE);
   Serial.print(" V");
   Serial.print("\n");
 
-  MOTOR1.set(1, 255);
-  MOTOR2.set(1, 255);
+  MOTOR1.set(harpi::Direction::Forward, 0);  // 170 is too low ; movement at 190
+  MOTOR2.set(harpi::Direction::Forward, 0);
 
   MOTOR1.write();
   MOTOR2.write();
+
+  LED1.set(static_cast< uint8_t >(map(distance, 0, 2000, 0, 255)), 20, 20);
 
   if (LED1.write() or LED2.write()) {
     LEDS.show();  
@@ -176,16 +196,3 @@ void loop()
 
   delay(400);
 }
-
-enum class i2cCommand {
-  VALUE,
-  LED1,
-  LED2,
-  MOTORS
-};
-
-enum class i2cValue {
-  US,
-  RFID,
-  VOLTAGE,
-};

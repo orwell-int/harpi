@@ -115,6 +115,15 @@ void TagFinder::init()
   m_reader.PCD_WriteRegister(m_reader.RxModeReg, 0x00);
   // Reset ModWidthReg
   m_reader.PCD_WriteRegister(m_reader.ModWidthReg, 0x26);
+
+  if (m_reader.PCD_PerformSelfTest())
+  {
+    Serial.print("Self test OK\n");
+  }
+  else
+  {
+    Serial.print("Self test KO!!!!!!\n");
+  }
 }
 
 void TagFinder::read()
@@ -141,7 +150,7 @@ void TagFinder::read()
     m_rfid_error_counter = 0;
     m_tag_found = true;
   } else {
-    Serial.print("\nStatus not OK: ");
+    Serial.print("\nStatus KO: ");
     Serial.print(result);
     Serial.print("\n");
   }
