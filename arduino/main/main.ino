@@ -46,7 +46,7 @@ uint8_t const LED_PIN = 15;
 uint8_t const LED_COUNT = 2;
 
 // VOLTMETER
-uint8_t const VOLTAGE_PIN = 16; // TO CHECK
+uint8_t const VOLTAGE_PIN = A6; // GPIO 34
 uint8_t const VOLTAGE_RATIO = 11;
 
 // BUZZER
