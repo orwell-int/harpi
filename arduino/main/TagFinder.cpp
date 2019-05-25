@@ -124,6 +124,7 @@ void TagFinder::init()
   {
     Serial.print("Self test KO!!!!!!\n");
   }
+  m_reader.PCD_Init(); // required after a self-test
 }
 
 void TagFinder::read()
@@ -149,10 +150,9 @@ void TagFinder::read()
     meta_add_tag(m_reader.uid);
     m_rfid_error_counter = 0;
     m_tag_found = true;
-  } else {
+  } else if (result != MFRC522::STATUS_TIMEOUT){
     Serial.print("\nStatus KO: ");
-    Serial.print(result);
-    Serial.print("\n");
+    Serial.println(result);
   }
 
   m_rfid_tag_present = m_tag_found;

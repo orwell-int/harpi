@@ -9,6 +9,9 @@
 #include "TagFinder.hpp"
 #include "Utils.hpp"
 
+// /!\ GPIO 12 MUST NOT BE USED TO BE ABLE TO UPLOAD PROGRAM
+// /!\ AND TO CONNECT TO SERIAL
+
 // RFID needs 3.3V
 // 18 SCK
 // 19 MISO
@@ -43,11 +46,11 @@ uint8_t const LED_PIN = 15;
 uint8_t const LED_COUNT = 2;
 
 // VOLTMETER
-uint8_t const VOLTAGE_PIN = 13;
+uint8_t const VOLTAGE_PIN = 16; // TO CHECK
 uint8_t const VOLTAGE_RATIO = 11;
 
 // BUZZER
-uint8_t const BUZZ_PIN = 12;
+uint8_t const BUZZ_PIN = 13;
 
 double const ADC_MAX_VALUE = 4095.0;
 
