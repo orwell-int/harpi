@@ -8,6 +8,8 @@
 #include "UltraSound.hpp"
 #include "TagFinder.hpp"
 #include "Utils.hpp"
+#include "FakeTagFinder.hpp"
+#include "Buzzer.hpp"
 
 // /!\ GPIO 12 MUST NOT BE USED TO BE ABLE TO UPLOAD PROGRAM
 // /!\ AND TO CONNECT TO SERIAL
@@ -19,7 +21,7 @@
 uint8_t const RFID_RST_PIN = 22;
 uint8_t const RFID_SDA_PIN = 21;
 
-MFRC522::Uid KEY1 = {4, {0xB7, 0x84 ,0x20, 0xD9}, 0};
+MFRC522::Uid KEY1 = {4, {0xB7, 0x84, 0x20, 0xD9}, 0};
 MFRC522::Uid KEY2 = {4, {0x60, 0x79, 0xFA, 0xA3}, 0};
 // other key with ring: B6 35 EA F7
 
@@ -54,29 +56,6 @@ uint8_t const BUZZ_PIN = 13;
 
 double const ADC_MAX_VALUE = 4095.0;
 
-class FakeTagFinder
-{
-public:
-  FakeTagFinder(
-    uint8_t const iPinSDA,
-    uint8_t const iPinRST)
-  {
-  }
-
-  void init()
-  {
-  }
-
-  void read()
-  {
-  }
-
-  bool hasDetected(MFRC522::Uid const & iTag)
-  {
-    return false;
-  };
-};
-
 harpi::Motor MOTOR1(MOTOR1_PWM_PIN, MOTOR1_IN1_PIN, MOTOR1_IN2_PIN);
 harpi::Motor MOTOR2(MOTOR2_PWM_PIN, MOTOR2_IN1_PIN, MOTOR2_IN2_PIN, harpi::LogicToMotion::Pin1LowIsForward);
 harpi::UltraSound US(US_TRIG_PIN, US_ECHO_PIN);
@@ -84,22 +63,7 @@ harpi::TagFinder TAG_FINDER(RFID_SDA_PIN, RFID_RST_PIN);
 Adafruit_NeoPixel LEDS = Adafruit_NeoPixel(LED_COUNT, LED_PIN, NEO_GRB + NEO_KHZ800);
 harpi::Led LED1(0, LEDS);
 harpi::Led LED2(1, LEDS);
-
-int channel = 0;
-
-
-void bip(int freq=200, int volume=128, int duration=120)
-{
-  ledcWriteTone(channel, freq);
-  ledcWrite(channel, volume);
-  delay(duration);
-  ledcWriteTone(channel, 0);
-}
-
-void silence()
-{
-  ledcWriteTone(channel, 0);
-}
+harpi::Buzzer BUZZER(BUZZ_PIN);
 
 void setup()
 {
@@ -108,20 +72,22 @@ void setup()
   TAG_FINDER.init(); // Init MFRC522
   LEDS.begin();
 
-  int freq = 100;
-  int resolution = 8;
-  ledcSetup(channel, freq, resolution);
-  ledcAttachPin(BUZZ_PIN, channel);
-  bip(1000, 64, 120);
-  note_t const notes[] = { NOTE_C, NOTE_D, NOTE_E, NOTE_F, NOTE_G, NOTE_A, NOTE_B };
-  for (auto const note: notes)
-  {
-    ledcWriteNote(channel, note, 4);
-    delay(400);
-  }
-  ledcWriteNote(channel, NOTE_C, 5);
+  BUZZER.sound(1000, 64);
   delay(400);
-  silence();
+  BUZZER.silence();
+
+
+//  bip(1000, 64, 120);
+//  note_t const notes[] = { NOTE_C, NOTE_D, NOTE_E, NOTE_F, NOTE_G, NOTE_A, NOTE_B };
+//  for (auto const note: notes)
+//  {
+//    ledcWriteNote(channel, note, 4);
+//    delay(400);
+//  }
+//  ledcWriteNote(channel, NOTE_C, 5);
+//  delay(400);
+//  silence();
+
 }
 
 double DISTANCE = 0;
@@ -140,7 +106,7 @@ void loop()
     {
       Serial.println("Key1 appeared");
       LED2.set(255, 0, 0);
-      bip();
+      //bip();
     }
   }
   else
@@ -160,7 +126,7 @@ void loop()
     {
       LED2.set(0, 0, 255);
       Serial.println("Key2 appeared");
-      bip();
+      //bip();
     }
   }
   else
