@@ -2,6 +2,7 @@
 
 #include <Arduino.h>
 
+// requires ERROPiX/ESP32_AnalogWrite
 #include <analogWrite.h>
 
 namespace harpi
