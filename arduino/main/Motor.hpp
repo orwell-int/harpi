@@ -12,16 +12,23 @@ enum class Direction
   Reverse
 };
 
+enum class LogicToMotion
+{
+  Pin1HighIsForward,
+  Pin1LowIsForward
+};
+
 class Motor
 {
 public:
   Motor(
     uint8_t const pinPWM,
     uint8_t const pinIN1,
-    uint8_t const pinIN2);
+    uint8_t const pinIN2,
+    LogicToMotion logicToMotion=LogicToMotion::Pin1HighIsForward);
 
   void set(
-    int8_t const direction,
+    Direction const direction,
     uint8_t const valuePWM);
 
   bool write();
@@ -38,6 +45,7 @@ private:
   uint8_t m_newValuePWM;
   bool m_hasNewDirection;
   bool m_hasNewValuePWM;
+  LogicToMotion const m_logicToMotion;
 };
 
 }

@@ -17,7 +17,7 @@ bool are_tags_equal(
   MFRC522::Uid const & iTag2)
 {
   return (iTag1.size == iTag2.size)
-    and (strncmp(iTag1.uidByte, iTag2.uidByte, iTag1.size) == 0);
+    and (strncmp(reinterpret_cast< char const * >(iTag1.uidByte), reinterpret_cast< char const * >(iTag2.uidByte), iTag1.size) == 0);
 }
 
 bool is_tag_known(
@@ -115,6 +115,16 @@ void TagFinder::init()
   m_reader.PCD_WriteRegister(m_reader.RxModeReg, 0x00);
   // Reset ModWidthReg
   m_reader.PCD_WriteRegister(m_reader.ModWidthReg, 0x26);
+
+  if (m_reader.PCD_PerformSelfTest())
+  {
+    Serial.print("Self test OK\n");
+  }
+  else
+  {
+    Serial.print("Self test KO!!!!!!\n");
+  }
+  m_reader.PCD_Init(); // required after a self-test
 }
 
 void TagFinder::read()
@@ -140,6 +150,9 @@ void TagFinder::read()
     meta_add_tag(m_reader.uid);
     m_rfid_error_counter = 0;
     m_tag_found = true;
+  } else if (result != MFRC522::STATUS_TIMEOUT){
+    Serial.print("\nStatus KO: ");
+    Serial.println(result);
   }
 
   m_rfid_tag_present = m_tag_found;
