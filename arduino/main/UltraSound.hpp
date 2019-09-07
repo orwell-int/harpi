@@ -13,13 +13,15 @@ class UltraSound
 public:
   UltraSound(
     uint8_t const pinTrig,
-    uint8_t const pinEcho);
+    uint8_t const pinEcho,
+    uint32_t const maxDistance=2000);
 
-  double read() const;
+  uint32_t read() const;
 
 private:
   uint8_t const m_pinTrig;
   uint8_t const m_pinEcho;
+  long const m_maxDistance;
 };
 
 }
