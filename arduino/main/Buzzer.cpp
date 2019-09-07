@@ -11,6 +11,8 @@ Buzzer::Buzzer(
   : m_pin(pin)
   , m_channel(channel)
   , m_currentSound(m_sounds.end())
+  , m_lastPlayedSound(m_sounds.end())
+  , m_playing(false)
 {
   int const pwmFreq = 100;
   int const pwmResolution = 8;
@@ -21,53 +23,64 @@ Buzzer::Buzzer(
 Buzzer::~Buzzer()
 {
   silence();
+  m_playing = false;
 }
 
 void Buzzer::addSounds(SoundVector const & sounds)
 {
-  bool const needNewPosition(m_sounds.end() == m_currentSound);
+  bool const needNewPositionForCurrentSound(m_sounds.end() == m_currentSound);
+  bool const needNewPositionForLastPlayedSound(m_sounds.end() == m_lastPlayedSound);
   SoundVector::const_iterator newEnd =  m_sounds.insert(m_sounds.end(), sounds.begin(), sounds.end());
-  if (needNewPosition)
+  if (needNewPositionForCurrentSound)
   {
     m_currentSound = newEnd;
   }
+  if (needNewPositionForLastPlayedSound)
+  {
+    m_lastPlayedSound = m_sounds.end();
+  }
 }
 
-void Buzzer::start(long time)
+void Buzzer::start(long const time)
 {
-  m_startTime = time;
   if (m_sounds.empty())
   {
     return;
   }
+  m_lastPlayedSound = m_sounds.end();
   m_currentSound = m_sounds.begin();
-  if (m_sounds.end() == m_currentSound)
-  {
-    return;
-  }
-  buzz();
+  buzz(time);
 }
 
-void Buzzer::update(long time)
+void Buzzer::update(long const time)
 {
   if (m_sounds.end() == m_currentSound)
   {
     return;
   }
-  Sound const & sound = *m_currentSound;
-  if (m_startTime + sound.m_duration <= time)
+  if (m_playing)
   {
-    ++m_currentSound;
+    Sound const & sound = *m_currentSound;
+    if (m_startTime + sound.m_duration <= time)
+    {
+      ++m_currentSound;
+    }
   }
-  buzz();
+  buzz(time);
 }
 
-void Buzzer::buzz() const
+void Buzzer::buzz(long const time)
 {
   if (m_sounds.end() == m_currentSound)
   {
     return;
   }
+  if (m_currentSound == m_lastPlayedSound)
+  {
+    return;
+  }
+  m_playing = true;
+  m_startTime = time;
   Sound const & sound = *m_currentSound;
   if (sound.m_note)
   {
@@ -81,6 +94,7 @@ void Buzzer::buzz() const
   {
     silence();
   }
+  m_lastPlayedSound = m_currentSound;
 }
 
 void Buzzer::sound(

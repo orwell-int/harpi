@@ -36,7 +36,6 @@ double      ledcReadFreq(uint8_t channel);
 void        ledcAttachPin(uint8_t pin, uint8_t channel);
 void        ledcDetachPin(uint8_t pin);
 
-
 #ifdef __cplusplus
 }
 #endif
