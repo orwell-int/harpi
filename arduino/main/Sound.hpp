@@ -42,7 +42,7 @@ public:
 
   T const & operator*() const
   {
-    if (nullptr != m_object)
+    if (nullptr == m_object)
     {
       throw std::out_of_range("nullptr");
     }

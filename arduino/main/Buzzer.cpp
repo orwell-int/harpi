@@ -25,7 +25,12 @@ Buzzer::~Buzzer()
 
 void Buzzer::addSounds(SoundVector const & sounds)
 {
-  m_sounds.insert(m_sounds.end(), sounds.begin(), sounds.end());
+  bool const needNewPosition(m_sounds.end() == m_currentSound);
+  SoundVector::const_iterator newEnd =  m_sounds.insert(m_sounds.end(), sounds.begin(), sounds.end());
+  if (needNewPosition)
+  {
+    m_currentSound = newEnd;
+  }
 }
 
 void Buzzer::start(long time)
@@ -50,7 +55,7 @@ void Buzzer::update(long time)
     return;
   }
   Sound const & sound = *m_currentSound;
-  if (m_startTime + sound.m_duration >= time)
+  if (m_startTime + sound.m_duration <= time)
   {
     ++m_currentSound;
   }
@@ -59,6 +64,10 @@ void Buzzer::update(long time)
 
 void Buzzer::buzz() const
 {
+  if (m_sounds.end() == m_currentSound)
+  {
+    return;
+  }
   Sound const & sound = *m_currentSound;
   if (sound.m_note)
   {
