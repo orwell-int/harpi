@@ -15,12 +15,10 @@ public:
 
   void addSounds(SoundVector const & sounds);
 
-  void start(long time);
+  void start(long const time);
 
-  void update(long time);
+  void update(long const time);
   
-  void buzz() const;
-
   void sound(
     int const freq=200,
     int const volume=128) const;
@@ -28,10 +26,14 @@ public:
   void silence() const;
 
 private:
+  void buzz(long const time);
+
   uint8_t const m_pin;
   int const m_channel;
   SoundVector m_sounds;
   SoundVector::const_iterator m_currentSound;
+  SoundVector::const_iterator m_lastPlayedSound;
   long m_startTime;
+  bool m_playing;
 };
 }
