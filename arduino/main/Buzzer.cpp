@@ -11,6 +11,7 @@ Buzzer::Buzzer(
   int const channel)
   : m_pin(pin)
   , m_channel(channel)
+  , m_stopTime(0)
   , m_playing(false)
 {
   int const pwmFreq = 100;
@@ -31,8 +32,8 @@ void Buzzer::addSounds(SoundVector const & sounds)
   {
     long lastStopTime =
       (m_sounds.empty())
-      ? lastStopTime = m_stopTime
-      : lastStopTime = m_sounds.back().getStopTime();
+      ? m_stopTime
+      : m_sounds.back().getStopTime();
     for (auto const& sound: sounds)
     {
       TimedSound timedSound = { lastStopTime, sound };
