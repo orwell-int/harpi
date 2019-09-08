@@ -3,6 +3,7 @@
 #include <esp32-hal-ledc.h>
 #include <vector>
 #include <stdexcept>
+#include <HardwareSerial.h>
 
 namespace harpi
 {
@@ -19,6 +20,12 @@ public:
   Optional()
     : m_object(nullptr)
   {
+  }
+
+  ~Optional()
+  {
+    delete m_object;
+    m_object = 0;
   }
 
   void operator=(Optional< T > const & other)
@@ -57,6 +64,8 @@ struct Sound
   Sound(long const silenceDuration)
     : m_duration(silenceDuration)
     , m_octave(0)
+    , m_hasNote(false)
+    , m_hasVolume(false)
   {
   }
   
@@ -67,11 +76,13 @@ struct Sound
     : m_duration(noteDuration)
     , m_note(note)
     , m_octave(octave)
+    , m_hasNote(true)
+    , m_hasVolume(false)
   {
   }
   
   Sound(
-    int const noteDuration,
+    long const noteDuration,
     note_t const note,
     uint8_t const octave,
     uint32_t const volume)
@@ -79,7 +90,28 @@ struct Sound
     , m_note(note)
     , m_octave(octave)
     , m_volume(volume)
+    , m_hasNote(true)
+    , m_hasVolume(true)
   {
+  }
+
+  void print() const
+  {
+    Serial.print("Sound( m_duration = ");
+    Serial.print(m_duration);
+    if (m_hasNote)
+    {
+      Serial.print(" m_note = ");
+      Serial.print(m_note);
+      Serial.print(" m_octave = ");
+      Serial.print(m_octave);
+    }
+    if (m_hasVolume)
+    {
+      Serial.print(" m_volume = ");
+      Serial.print(m_volume);
+    }
+    Serial.println(" )");
   }
 
 //  void operator=(Sound const & other)
@@ -95,9 +127,13 @@ struct Sound
 //  }
 
   long m_duration;
-  Optional< note_t > m_note;
+//  Optional< note_t > m_note;
+  note_t m_note;
   uint8_t m_octave;
-  Optional< uint32_t > m_volume;
+  uint32_t m_volume;
+  bool m_hasNote;
+  bool m_hasVolume;
+//  Optional< uint32_t > m_volume;
 };
 
 typedef std::vector< Sound > SoundVector;

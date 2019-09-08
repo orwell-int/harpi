@@ -2,6 +2,8 @@
 
 #include "Sound.hpp"
 
+#include <deque>
+
 namespace harpi
 {
 class Buzzer
@@ -15,7 +17,11 @@ public:
 
   void addSounds(SoundVector const & sounds);
 
+  void updateStartTimes(long const time);
+
   void start(long const time);
+
+  void stop();
 
   void update(long const time);
   
@@ -26,14 +32,23 @@ public:
   void silence() const;
 
 private:
-  void buzz(long const time);
+  void buzz(Sound const & sound);
 
   uint8_t const m_pin;
   int const m_channel;
-  SoundVector m_sounds;
-  SoundVector::const_iterator m_currentSound;
-  SoundVector::const_iterator m_lastPlayedSound;
-  long m_startTime;
+  struct TimedSound
+  {
+    long m_startTime;
+    Sound m_sound;
+
+    long getStopTime() const
+    {
+      return m_startTime + m_sound.m_duration;
+    }
+  };
+  typedef std::deque< TimedSound > TimedSoundDequeue;
+  TimedSoundDequeue m_sounds;
+  long m_stopTime;
   bool m_playing;
 };
 }
