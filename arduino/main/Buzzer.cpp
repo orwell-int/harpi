@@ -1,6 +1,7 @@
 #include "Buzzer.hpp"
 
 #include <algorithm>
+#include <HardwareSerial.h>
 
 namespace harpi
 {
@@ -10,8 +11,7 @@ Buzzer::Buzzer(
   int const channel)
   : m_pin(pin)
   , m_channel(channel)
-  , m_currentSound(m_sounds.end())
-  , m_lastPlayedSound(m_sounds.end())
+  , m_stopTime(0)
   , m_playing(false)
 {
   int const pwmFreq = 100;
@@ -28,16 +28,35 @@ Buzzer::~Buzzer()
 
 void Buzzer::addSounds(SoundVector const & sounds)
 {
-  bool const needNewPositionForCurrentSound(m_sounds.end() == m_currentSound);
-  bool const needNewPositionForLastPlayedSound(m_sounds.end() == m_lastPlayedSound);
-  SoundVector::const_iterator newEnd =  m_sounds.insert(m_sounds.end(), sounds.begin(), sounds.end());
-  if (needNewPositionForCurrentSound)
+  if (m_playing)
   {
-    m_currentSound = newEnd;
+    long lastStopTime =
+      (m_sounds.empty())
+      ? m_stopTime
+      : m_sounds.back().getStopTime();
+    for (auto const& sound: sounds)
+    {
+      TimedSound timedSound = { lastStopTime, sound };
+      m_sounds.push_back(timedSound);
+      lastStopTime = timedSound.getStopTime();
+    }
   }
-  if (needNewPositionForLastPlayedSound)
+  else
   {
-    m_lastPlayedSound = m_sounds.end();
+    for (auto const& sound: sounds)
+    {
+      m_sounds.push_back({ 0, sound });
+    }
+  }
+}
+
+void Buzzer::updateStartTimes(long const time)
+{
+  long startTime = time;
+  for (auto& sound: m_sounds)
+  {
+    sound.m_startTime = startTime;
+    startTime = sound.getStopTime();
   }
 }
 
@@ -47,54 +66,77 @@ void Buzzer::start(long const time)
   {
     return;
   }
-  m_lastPlayedSound = m_sounds.end();
-  m_currentSound = m_sounds.begin();
-  buzz(time);
+  update(time);
+}
+
+void Buzzer::stop()
+{
+  silence();
+  m_playing = false;
 }
 
 void Buzzer::update(long const time)
 {
-  if (m_sounds.end() == m_currentSound)
+  Serial.println(time);
+  if (not m_playing)
   {
-    return;
-  }
-  if (m_playing)
-  {
-    Sound const & sound = *m_currentSound;
-    if (m_startTime + sound.m_duration <= time)
+    if (not m_sounds.empty())
     {
-      ++m_currentSound;
+      TimedSound sound = m_sounds.front();
+      m_sounds.pop_front();
+      sound.m_startTime = time;
+      m_stopTime = sound.getStopTime();
+      buzz(sound.m_sound);
+      updateStartTimes(m_stopTime);
     }
   }
-  buzz(time);
+  else
+  {
+    if (m_stopTime <= time)
+    {
+      bool foundSound = false;
+      if (not m_sounds.empty())
+      {
+        while (not foundSound)
+        {
+          TimedSound sound = m_sounds.front();
+          m_sounds.pop_front();
+          if (sound.getStopTime() <= time)
+          {
+            sound.m_sound.print();
+            if (m_sounds.empty())
+            {
+              break;
+            }
+            continue;
+          }
+          buzz(sound.m_sound);
+          foundSound = true;
+        }
+      }
+      if (not foundSound)
+      {
+        stop();
+      }
+    }
+  }
 }
 
-void Buzzer::buzz(long const time)
+void Buzzer::buzz(Sound const & sound)
 {
-  if (m_sounds.end() == m_currentSound)
-  {
-    return;
-  }
-  if (m_currentSound == m_lastPlayedSound)
-  {
-    return;
-  }
   m_playing = true;
-  m_startTime = time;
-  Sound const & sound = *m_currentSound;
-  if (sound.m_note)
+  if (sound.m_hasNote)
   {
-    if (sound.m_volume)
+    if (sound.m_hasVolume)
     {
-      ledcWrite(m_channel, *sound.m_volume);
+      ledcWrite(m_channel, sound.m_volume);
     }
-    ledcWriteNote(m_channel, *sound.m_note, sound.m_octave);
+    ledcWriteNote(m_channel, sound.m_note, sound.m_octave);
   }
   else
   {
     silence();
   }
-  m_lastPlayedSound = m_currentSound;
 }
 
 void Buzzer::sound(

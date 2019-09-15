@@ -85,13 +85,20 @@ int as_int(char * const chars, uint8_t len=0)
     len = strlen(chars);
   }
   String string;
+  bool is_negative = false;
   for (uint8_t i = 0 ; i < len ; ++i)
   {
+    if ((0 == i) and ('-' == chars[i]))
+    {
+      is_negative = true;
+      continue;
+    }
     string += char(chars[i]);
   }
   try
   {
-    return string.toInt();
+    int const result(string.toInt());
+    return (is_negative) ? -result : result;
   }
   catch (...)
   {
@@ -213,12 +220,32 @@ void harpi_setup()
 //  delay(400);
 //  silence();
 
+  BUZZER.start(millis());
 }
 
 double DISTANCE = 0;
 double VOLTAGE = 0;
 uint8_t RFID_CARDS_NUMBERS = 0;
 
+using harpi::Sound;
+uint8_t FIRE_LENGTH = 120;
+uint8_t SILENCE_LENGTH = 36;
+harpi::SoundVector const SOUND_FIRE1 = {
+  Sound(FIRE_LENGTH, NOTE_C, 3, 32),
+  Sound(SILENCE_LENGTH),
+  Sound(FIRE_LENGTH, NOTE_C, 3, 64),
+  Sound(SILENCE_LENGTH),
+  Sound(FIRE_LENGTH, NOTE_C, 3, 128),
+  Sound(SILENCE_LENGTH)
+  };
+harpi::SoundVector const SOUND_FIRE2 = {
+  Sound(FIRE_LENGTH, NOTE_C, 4, 32),
+  Sound(SILENCE_LENGTH),
+  Sound(FIRE_LENGTH, NOTE_C, 4, 64),
+  Sound(SILENCE_LENGTH),
+  Sound(FIRE_LENGTH, NOTE_C, 4, 128),
+  Sound(SILENCE_LENGTH)
+  };
 
 void harpi_loop()
 {
@@ -280,18 +307,21 @@ void harpi_loop()
   uint32_t distance = US.read();
 
   VOLTAGE = analogRead(VOLTAGE_PIN) * VOLTAGE_RATIO * 5 / ADC_MAX_VALUE;
-  Serial.print("Distance: ");
-  Serial.print(distance);
-  Serial.print(" mm ; voltage: ");
-  Serial.print(VOLTAGE);
-  Serial.print(" V");
-  Serial.print("\n");
+//  Serial.print("Distance: ");
+//  Serial.print(distance);
+//  Serial.print(" mm ; voltage: ");
+//  Serial.print(VOLTAGE);
+//  Serial.print(" V");
+//  Serial.print("\n");
 
   uint8_t const MAX_SIZE = 100;
   uint8_t buffer[MAX_SIZE];
-  uint8_t move_left = 0;
-  uint8_t move_right = 0;
+  int move_left = 0;
+  int move_right = 0;
   bool can_move = false;
+  bool fire1;
+  bool fire2;
+  bool can_fire = false;
   memset(buffer, 0, MAX_SIZE);
   int len = UDP.parsePacket();
   if (len > 0)
@@ -327,6 +357,28 @@ void harpi_loop()
           Serial.println("Could not read left");
         }
       }
+      else if (0 == strcmp("fire", msg))
+      {
+        char * char_fire1 = strtok(nullptr, " ");
+        if (nullptr != msg)
+        {
+          fire1 = '1' == char_fire1[0];
+          char * char_fire2 = strtok(nullptr, " ");
+          if (nullptr != msg)
+          {
+            fire2 = '1' == char_fire2[0];
+            can_fire = true;
+          }
+          else
+          {
+            Serial.println("Could not read fire2");
+          }
+        }
+        else
+        {
+          Serial.println("Could not read fire1");
+        }
+      }
       else
       {
         Serial.println("Wrong type of message");
@@ -337,11 +389,10 @@ void harpi_loop()
       Serial.println("Could not read message");
     }
   }
-
-  harpi::Direction direction_left = harpi::Direction::Forward;
-  harpi::Direction direction_right = harpi::Direction::Forward;
   if (can_move)
   {
+    harpi::Direction direction_left = harpi::Direction::Forward;
+    harpi::Direction direction_right = harpi::Direction::Forward;
     char dleft = '+';
     char dright = '+';
     if (move_left < 0)
@@ -364,18 +415,29 @@ void harpi_loop()
     Serial.print(dright);
     Serial.print(" ");
     Serial.println(move_right);
+
+    MOTOR1.set(direction_left, move_left);  // 170 is too low ; movement at 190
+    MOTOR2.set(direction_right, move_right);
+  
+    MOTOR1.write();
+    MOTOR2.write();
   }
-  else
+  if (can_fire)
   {
-    move_left = 0;
-    move_right = 0;
+    Serial.print(" Fire: ");
+    Serial.print(fire1);
+    Serial.print(" / ");
+    Serial.println(fire2);
+
+    if (fire1)
+    {
+      BUZZER.addSounds(SOUND_FIRE1);
+    }
+    if (fire2)
+    {
+      BUZZER.addSounds(SOUND_FIRE2);
+    }
   }
-
-  MOTOR1.set(direction_left, move_left);  // 170 is too low ; movement at 190
-  MOTOR2.set(direction_right, move_right);
-
-  MOTOR1.write();
-  MOTOR2.write();
 
   LED1.set(static_cast< uint8_t >(map(distance, 0, 2000, 0, 255)), 20, 20);
 
@@ -389,5 +451,6 @@ void harpi_loop()
     LEDS.show();  
   }
 
-  delay(400);
+  BUZZER.update(millis());
+//  delay(1);
 }
