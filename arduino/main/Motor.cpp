@@ -72,6 +72,7 @@ bool Motor::write()
     m_hasNewValuePWM = false;
     hasChanged = true;
   }
+  return hasChanged;
 }
 
 }
